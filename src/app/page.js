@@ -16,7 +16,7 @@ export default function Home() {
   const [chartMonthFilter, setChartMonthFilter] = useState("all");
   const [date, setDate] = useState(null);
   const [token, setToken] = useState(null);
-const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(false);
 
   // --- Helpers ---
   const formatLocalDate = (d) => {
@@ -71,42 +71,42 @@ const [adding, setAdding] = useState(false);
   }, []);
 
   // --- Tambah expense ---
-const addExpense = async () => {
-  if (!description || !amount) return;
+  const addExpense = async () => {
+    if (!description || !amount) return;
 
-  setAdding(true); // mulai loading tombol Add
-  const newExpense = {
-    description,
-    amount: parseFloat(amount),
-    date: date ? formatLocalDate(date) : formatLocalDate(new Date()),
+    setAdding(true); // mulai loading tombol Add
+    const newExpense = {
+      description,
+      amount: parseFloat(amount),
+      date: date ? formatLocalDate(date) : formatLocalDate(new Date()),
+    };
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setAdding(false);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/expenses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(newExpense),
+      });
+      const savedExpense = await res.json();
+      setExpenses((prev) => sortedByDate([...prev, savedExpense]));
+      setDescription("");
+      setAmount("");
+      setDate(null);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setAdding(false); // selesai loading
+    }
   };
-
-  const token = localStorage.getItem("token");
-  if (!token) {
-    setAdding(false);
-    return;
-  }
-
-  try {
-    const res = await fetch("/api/expenses", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(newExpense),
-    });
-    const savedExpense = await res.json();
-    setExpenses((prev) => sortedByDate([...prev, savedExpense]));
-    setDescription("");
-    setAmount("");
-    setDate(null);
-  } catch (err) {
-    console.error(err);
-  } finally {
-    setAdding(false); // selesai loading
-  }
-};
 
 
   // --- Hapus expense ---
@@ -127,11 +127,11 @@ const addExpense = async () => {
 
   // --- Filter bulan ---
   const filteredExpenses =
-  chartMonthFilter !== "all"
-    ? expenses.filter(
+    chartMonthFilter !== "all"
+      ? expenses.filter(
         (exp) => new Date(exp.date).getMonth() + 1 === parseInt(chartMonthFilter)
       )
-    : expenses;
+      : expenses;
 
 
   const total = filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
@@ -139,137 +139,138 @@ const addExpense = async () => {
 
   return (
     <div className="max-w-xl mx-auto p-4">
-  {/* Header */}
-  <div className="flex justify-between items-center mb-4">
-    <h1 className="text-2xl font-bold">Expense Tracker</h1>
-    <button
-      onClick={handleLogout}
-      className="bg-red-500 text-white p-2 rounded"
-    >
-      Logout
-    </button>
-  </div>
-
-  {/* Form Input */}
-  <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 mb-4">
-    <div className="flex flex-col md:flex-row gap-2 flex-grow">
-  <input
-    type="text"
-    placeholder="Description"
-    value={description}
-    onChange={(e) => setDescription(e.target.value)}
-    className="border p-2 w-full md:w-1/2"
-  />
-  <input
-    type="number"
-    placeholder="Amount"
-    value={amount}
-    onChange={(e) => setAmount(e.target.value)}
-    className="border p-2 w-full md:w-1/4"
-  />
-  <DatePicker
-    selected={date}
-    onChange={(d) => setDate(d)}
-    dateFormat="dd/MM/yyyy"
-    placeholderText="Select date"
-    className="border p-2 w-full md:flex-1 min-w-[120px]"
-  />
-</div>
-
-    <button
-      onClick={addExpense}
-      disabled={adding}
-      className={`bg-blue-500 text-white p-2 rounded w-full md:w-auto md:ml-auto mt-2 md:mt-0 flex items-center justify-center gap-2 ${
-        adding ? "opacity-50 cursor-not-allowed" : ""
-      }`}
-    >
-      {adding && (
-        <svg
-          className="animate-spin h-4 w-4 text-white"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-          ></circle>
-          <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-          ></path>
-        </svg>
-      )}
-      {adding ? "Adding..." : "Add"}
-    </button>
-  </div>
-
-  {/* Chart + Filter */}
-  <div className="mb-4">
-    <div className="flex flex-col md:flex-row justify-between items-center mb-2">
-      <select
-        value={chartMonthFilter}
-        onChange={(e) => setChartMonthFilter(e.target.value)}
-        className="border p-2 mb-2 md:mb-0"
-      >
-        <option value="all">All Months</option>
-        {Array.from({ length: 12 }, (_, i) => (
-          <option key={i + 1} value={i + 1}>
-            {new Date(0, i).toLocaleString("default", { month: "long" })}
-          </option>
-        ))}
-      </select>
-      {chartMonthFilter !== "all" && (
+      {/* Header */}
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">Expense Tracker</h1>
         <button
-          onClick={() => setChartMonthFilter("all")}
-          className="bg-gray-300 p-1 rounded"
+          onClick={handleLogout}
+          className="bg-red-500 text-white p-2 rounded"
         >
-          Reset Filter
+          Logout
         </button>
-      )}
-    </div>
+      </div>
 
-    <ExpenseChart
-      expenses={expenses}
-      onMonthClick={(month) => setChartMonthFilter(month)}
-      chartMonthFilter={chartMonthFilter}
-    />
-  </div>
+      {/* Form Input */}
+      <div className="bg-gray-800 p-4 rounded shadow mb-6">
+        <h2 className="font-semibold mb-2">Tambah Pengeluaran</h2>
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 mb-4">
+          <div className="flex flex-col md:flex-row gap-2 flex-grow">
+            <input
+              type="text"
+              placeholder="Description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="border p-2 w-full md:w-1/2"
+            />
+            <input
+              type="number"
+              placeholder="Amount"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="border p-2 w-full md:w-1/4"
+            />
+            <DatePicker
+              selected={date}
+              onChange={(d) => setDate(d)}
+              dateFormat="dd/MM/yyyy"
+              placeholderText="Select date"
+              className="border p-2 w-full md:flex-1 min-w-[120px]"
+            />
+          </div>
 
-  {/* Total */}
-  <h2 className="text-xl font-bold mb-2">
-    Total: Rp {filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0).toLocaleString()}
-  </h2>
-
-  {/* List Expenses */}
-  <ul>
-    {filteredExpenses.map((exp) => (
-      <li
-        key={exp.id}
-        className="flex justify-between items-center border-b py-2"
-      >
-        <div>
-          <p>{exp.description}</p>
-          <small>
-            {new Date(exp.date).toLocaleDateString()} - Rp{" "}
-            {exp.amount.toLocaleString()}
-          </small>
+          <button
+            onClick={addExpense}
+            disabled={adding}
+            className={`bg-blue-500 text-white p-2 rounded w-full md:w-auto md:ml-auto mt-2 md:mt-0 flex items-center justify-center gap-2 ${adding ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+          >
+            {adding && (
+              <svg
+                className="animate-spin h-4 w-4 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                ></path>
+              </svg>
+            )}
+            {adding ? "Adding..." : "Add"}
+          </button>
         </div>
-        <button
-          onClick={() => deleteExpense(exp.id)}
-          className="text-red-500"
-        >
-          Delete
-        </button>
-      </li>
-    ))}
-  </ul>
-</div>
+      </div>
+      {/* Chart + Filter */}
+      <div className="mb-4">
+        <div className="flex flex-col md:flex-row justify-between items-center mb-2">
+          <select
+            value={chartMonthFilter}
+            onChange={(e) => setChartMonthFilter(e.target.value)}
+            className="border p-2 mb-2 md:mb-0"
+          >
+            <option value="all" className="text-black">All Months</option>
+            {Array.from({ length: 12 }, (_, i) => (
+              <option key={i + 1} value={i + 1} className="text-black">
+                {new Date(0, i).toLocaleString("default", { month: "long" })}
+              </option>
+            ))}
+          </select>
+          {chartMonthFilter !== "all" && (
+            <button
+              onClick={() => setChartMonthFilter("all")}
+              className="bg-gray-300 p-1 rounded"
+            >
+              Reset Filter
+            </button>
+          )}
+        </div>
+
+        <ExpenseChart
+          expenses={expenses}
+          onMonthClick={(month) => setChartMonthFilter(month)}
+          chartMonthFilter={chartMonthFilter}
+        />
+      </div>
+
+      {/* Total */}
+      <h2 className="text-xl font-bold mb-2">
+        Total: Rp {filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0).toLocaleString()}
+      </h2>
+
+      {/* List Expenses */}
+      <ul>
+        {filteredExpenses.map((exp) => (
+          <li
+            key={exp.id}
+            className="flex justify-between items-center border-b py-2"
+          >
+            <div>
+              <p>{exp.description}</p>
+              <small>
+                {new Date(exp.date).toLocaleDateString()} - Rp{" "}
+                {exp.amount.toLocaleString()}
+              </small>
+            </div>
+            <button
+              onClick={() => deleteExpense(exp.id)}
+              className="text-red-500"
+            >
+              Delete
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
 
   );
 }
