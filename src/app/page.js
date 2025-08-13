@@ -16,6 +16,7 @@ export default function Home() {
   const [chartMonthFilter, setChartMonthFilter] = useState("all");
   const [date, setDate] = useState(null);
   const [token, setToken] = useState(null);
+const [adding, setAdding] = useState(false);
 
   // --- Helpers ---
   const formatLocalDate = (d) => {
@@ -70,36 +71,43 @@ export default function Home() {
   }, []);
 
   // --- Tambah expense ---
-  const addExpense = async () => {
-    if (!description || !amount) return;
+const addExpense = async () => {
+  if (!description || !amount) return;
 
-    const newExpense = {
-      description,
-      amount: parseFloat(amount),
-      date: date ? formatLocalDate(date) : formatLocalDate(new Date()),
-    };
-
-    const token = localStorage.getItem("token");
-    if (!token) return;
-
-    try {
-      const res = await fetch("/api/expenses", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(newExpense),
-      });
-      const savedExpense = await res.json();
-      setExpenses((prev) => sortedByDate([...prev, savedExpense]));
-      setDescription("");
-      setAmount("");
-      setDate(null);
-    } catch (err) {
-      console.error(err);
-    }
+  setAdding(true); // mulai loading tombol Add
+  const newExpense = {
+    description,
+    amount: parseFloat(amount),
+    date: date ? formatLocalDate(date) : formatLocalDate(new Date()),
   };
+
+  const token = localStorage.getItem("token");
+  if (!token) {
+    setAdding(false);
+    return;
+  }
+
+  try {
+    const res = await fetch("/api/expenses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(newExpense),
+    });
+    const savedExpense = await res.json();
+    setExpenses((prev) => sortedByDate([...prev, savedExpense]));
+    setDescription("");
+    setAmount("");
+    setDate(null);
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setAdding(false); // selesai loading
+  }
+};
+
 
   // --- Hapus expense ---
   const deleteExpense = async (id) => {
@@ -171,11 +179,37 @@ export default function Home() {
           />
         </div>
         <button
-          onClick={addExpense}
-          className="bg-blue-500 text-white p-2 rounded w-full md:w-auto md:ml-auto mt-2 md:mt-0"
-        >
-          Add
-        </button>
+  onClick={addExpense}
+  disabled={adding}
+  className={`bg-blue-500 text-white p-2 rounded w-full md:w-auto md:ml-auto mt-2 md:mt-0 flex items-center justify-center gap-2 ${
+    adding ? "opacity-50 cursor-not-allowed" : ""
+  }`}
+>
+  {adding && (
+    <svg
+      className="animate-spin h-4 w-4 text-white"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      ></circle>
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+      ></path>
+    </svg>
+  )}
+  {adding ? "Adding..." : "Add"}
+</button>
+
       </div>
 
       {/* Filter Bulan */}
