@@ -138,12 +138,6 @@ export default function Home() {
         <h1 className="text-2xl font-bold">Expense Tracker</h1>
         <div className="flex gap-2">
           <button
-            onClick={goToRegister}
-            className="bg-green-500 text-white p-2 rounded"
-          >
-            Register
-          </button>
-          <button
             onClick={handleLogout}
             className="bg-red-500 text-white p-2 rounded"
           >
