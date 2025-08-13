@@ -1,12 +1,22 @@
 "use client";
 import Image from "next/image";
-import { useState } from "react";
+import { useState,useEffect} from "react";
 
 export default function Home() {
   const [expenses, setExpenses] = useState([]);
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
-
+// ✅ Load data dari localStorage saat pertama kali app dibuka
+  useEffect(() => {
+    const saved = localStorage.getItem("expenses");
+    if (saved) {
+      setExpenses(JSON.parse(saved));
+    }
+  }, []);
+    // ✅ Simpan data ke localStorage setiap kali expenses berubah
+  useEffect(() => {
+    localStorage.setItem("expenses", JSON.stringify(expenses));
+  }, [expenses]);
   const addExpense = () => {
     if (!title || !amount) return;
     const newExpense = {
@@ -19,7 +29,10 @@ export default function Home() {
     setAmount("");
   };
   const total = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-
+// ✅ hapus pengeluaran
+  const deleteExpense = (id) => {
+    setExpenses(expenses.filter((exp) => exp.id !== id));
+  };
   return (
     <main className="min-h-screen bg-gray-100 flex items-center justify-center">
       <div className="bg-white p-6 rounded-xl shadow-md w-full max-w-md">
@@ -56,8 +69,16 @@ export default function Home() {
               key={exp.id}
               className="flex justify-between border-b py-2 text-sm"
             >
-              <span>{exp.title}</span>
-              <span>Rp {exp.amount.toLocaleString()}</span>
+               <div>
+                <span className="font-medium">{exp.title}</span> — Rp{" "}
+                {exp.amount.toLocaleString()}
+              </div>
+              <button
+                onClick={() => deleteExpense(exp.id)}
+                className="bg-red-500 text-white px-2 py-1 rounded text-xs"
+              >
+                Hapus
+              </button>
             </li>
           ))}
         </ul>
