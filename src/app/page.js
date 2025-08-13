@@ -1,17 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import ExpenseChart from "../components/ExpenseChart";
 
 export default function Home() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
   const [expenses, setExpenses] = useState([]);
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [monthFilter, setMonthFilter] = useState("all");
   const [chartMonthFilter, setChartMonthFilter] = useState("all");
   const [date, setDate] = useState(null);
+  const [token, setToken] = useState(null);
 
   // --- Helpers ---
   const formatLocalDate = (d) => {
@@ -25,11 +29,37 @@ export default function Home() {
   const sortedByDate = (arr) =>
     [...arr].sort((a, b) => new Date(a.date) - new Date(b.date));
 
+  // --- Redirect ke login kalau belum login ---
+  useEffect(() => {
+    const t = localStorage.getItem("token");
+    if (!t) {
+      router.replace("/login");
+    } else {
+      setToken(t);
+      setLoading(false);
+    }
+  }, [router]);
+
+  // --- Logout function ---
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    router.replace("/login");
+  };
+
+  // --- Navigasi ke register ---
+  const goToRegister = () => {
+    router.push("/register");
+  };
+
   // --- Load data dari backend ---
   useEffect(() => {
     const fetchExpenses = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
       try {
-        const res = await fetch("/api/expenses");
+        const res = await fetch("/api/expenses", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         const data = await res.json();
         setExpenses(sortedByDate(data));
       } catch (err) {
@@ -49,10 +79,16 @@ export default function Home() {
       date: date ? formatLocalDate(date) : formatLocalDate(new Date()),
     };
 
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
     try {
       const res = await fetch("/api/expenses", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(newExpense),
       });
       const savedExpense = await res.json();
@@ -67,8 +103,14 @@ export default function Home() {
 
   // --- Hapus expense ---
   const deleteExpense = async (id) => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
     try {
-      await fetch(`/api/expenses/${id}`, { method: "DELETE" });
+      await fetch(`/api/expenses/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setExpenses((prev) => prev.filter((exp) => exp.id !== id));
     } catch (err) {
       console.error(err);
@@ -87,13 +129,28 @@ export default function Home() {
           (exp) => new Date(exp.date).getMonth() + 1 === parseInt(monthFilter)
         );
 
-  // --- Total ---
   const total = filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+  if (loading) return <div>Redirecting to login...</div>;
 
   return (
     <div className="max-w-xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Expense Tracker</h1>
-
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">Expense Tracker</h1>
+        <div className="flex gap-2">
+          <button
+            onClick={goToRegister}
+            className="bg-green-500 text-white p-2 rounded"
+          >
+            Register
+          </button>
+          <button
+            onClick={handleLogout}
+            className="bg-red-500 text-white p-2 rounded"
+          >
+            Logout
+          </button>
+        </div>
+      </div>
       {/* Form Input */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center mb-4">
         <div className="flex flex-col md:flex-row gap-2 flex-grow">

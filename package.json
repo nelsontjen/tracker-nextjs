@@ -9,8 +9,10 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "chart.js": "^4.5.0",
     "date-fns": "^4.1.0",
+    "jsonwebtoken": "^9.0.2",
     "next": "15.4.6",
     "pg": "^8.16.3",
     "react": "19.1.0",
