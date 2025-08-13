@@ -13,49 +13,81 @@ export default function Home() {
   const [chartMonthFilter, setChartMonthFilter] = useState("all");
   const [date, setDate] = useState(null);
 
-  // Load dari localStorage
+  // --- Helpers ---
+  const formatLocalDate = (d) => {
+    if (!d) return null;
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const sortedByDate = (arr) =>
+    [...arr].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  // --- Load data dari backend ---
   useEffect(() => {
-    const savedExpenses = JSON.parse(localStorage.getItem("expenses")) || [];
-    setExpenses(savedExpenses);
+    const fetchExpenses = async () => {
+      try {
+        const res = await fetch("/api/expenses");
+        const data = await res.json();
+        setExpenses(sortedByDate(data));
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchExpenses();
   }, []);
 
-  // Simpan ke localStorage tiap ada perubahan
-  useEffect(() => {
-    localStorage.setItem("expenses", JSON.stringify(expenses));
-  }, [expenses]);
-
-  const addExpense = () => {
+  // --- Tambah expense ---
+  const addExpense = async () => {
     if (!description || !amount) return;
+
     const newExpense = {
-      id: Date.now(),
       description,
       amount: parseFloat(amount),
-      date: date ? date.toISOString() : new Date().toISOString(),
+      date: date ? formatLocalDate(date) : formatLocalDate(new Date()),
     };
-    setExpenses([...expenses, newExpense]);
-    setDescription("");
-    setAmount("");
-    setDate(null);
+
+    try {
+      const res = await fetch("/api/expenses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newExpense),
+      });
+      const savedExpense = await res.json();
+      setExpenses((prev) => sortedByDate([...prev, savedExpense]));
+      setDescription("");
+      setAmount("");
+      setDate(null);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const deleteExpense = (id) => {
-    setExpenses(expenses.filter((exp) => exp.id !== id));
+  // --- Hapus expense ---
+  const deleteExpense = async (id) => {
+    try {
+      await fetch(`/api/expenses/${id}`, { method: "DELETE" });
+      setExpenses((prev) => prev.filter((exp) => exp.id !== id));
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  // Filter bulan
+  // --- Filter bulan ---
   const filteredExpenses =
-  chartMonthFilter !== "all"
-    ? expenses.filter((exp) => new Date(exp.date).getMonth() + 1 === chartMonthFilter)
-    : monthFilter === "all"
-    ? expenses
-    : expenses.filter(
-        (exp) => new Date(exp.date).getMonth() + 1 === parseInt(monthFilter)
-      );
-// Pass function ke chart
-<ExpenseChart
-  expenses={expenses}
-  onMonthClick={(month) => setChartMonthFilter(month)}
-/>
+    chartMonthFilter !== "all"
+      ? expenses.filter(
+          (exp) => new Date(exp.date).getMonth() + 1 === chartMonthFilter
+        )
+      : monthFilter === "all"
+      ? expenses
+      : expenses.filter(
+          (exp) => new Date(exp.date).getMonth() + 1 === parseInt(monthFilter)
+        );
+
+  // --- Total ---
   const total = filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
 
   return (
@@ -63,33 +95,33 @@ export default function Home() {
       <h1 className="text-2xl font-bold mb-4">Expense Tracker</h1>
 
       {/* Form Input */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center mb-4">
         <div className="flex flex-col md:flex-row gap-2 flex-grow">
-    <input
-      type="text"
-      placeholder="Description"
-      value={description}
-      onChange={(e) => setDescription(e.target.value)}
-      className="border p-2 w-full md:w-1/2"
-    />
-    <input
-      type="number"
-      placeholder="Amount"
-      value={amount}
-      onChange={(e) => setAmount(e.target.value)}
-      className="border p-2 w-full md:w-1/2"
-    />
-    <DatePicker
-      selected={date}
-      onChange={(d) => setDate(d)}
-      dateFormat="dd/MM/yyyy"
-      placeholderText="Select date"
-      className="border p-2 w-full md:w-1/1"
-    />
-  </div>
+          <input
+            type="text"
+            placeholder="Description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="border p-2 w-full md:w-1/2"
+          />
+          <input
+            type="number"
+            placeholder="Amount"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="border p-2 w-full md:w-1/2"
+          />
+          <DatePicker
+            selected={date}
+            onChange={(d) => setDate(d)}
+            dateFormat="dd/MM/yyyy"
+            placeholderText="Select date"
+            className="border p-2 w-full md:w-1/1"
+          />
+        </div>
         <button
           onClick={addExpense}
-          className="bg-blue-500 text-white p-2 rounded w-full md:w-auto md:ml-auto"
+          className="bg-blue-500 text-white p-2 rounded w-full md:w-auto md:ml-auto mt-2 md:mt-0"
         >
           Add
         </button>
@@ -103,28 +135,21 @@ export default function Home() {
           className="border p-2"
         >
           <option value="all">All Months</option>
-          <option value="1">January</option>
-          <option value="2">February</option>
-          <option value="3">March</option>
-          <option value="4">April</option>
-          <option value="5">May</option>
-          <option value="6">June</option>
-          <option value="7">July</option>
-          <option value="8">August</option>
-          <option value="9">September</option>
-          <option value="10">October</option>
-          <option value="11">November</option>
-          <option value="12">December</option>
+          {Array.from({ length: 12 }, (_, i) => (
+            <option key={i + 1} value={i + 1}>
+              {new Date(0, i).toLocaleString("default", { month: "long" })}
+            </option>
+          ))}
         </select>
       </div>
-{/* Chart */}
+
+      {/* Chart */}
       <div className="my-4">
         <ExpenseChart
-  expenses={expenses}
-  onMonthClick={(month) => setChartMonthFilter(month)}
-  chartMonthFilter={chartMonthFilter}
-/>
-
+          expenses={expenses}
+          onMonthClick={(month) => setChartMonthFilter(month)}
+          chartMonthFilter={chartMonthFilter}
+        />
         {chartMonthFilter !== "all" && (
           <button
             onClick={() => setChartMonthFilter("all")}
