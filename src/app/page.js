@@ -28,19 +28,40 @@ export default function Home() {
   };
 
   const sortedByDate = (arr) =>
-    [...arr].sort((a, b) => new Date(a.date) - new Date(b.date));
+    Array.isArray(arr) ? [...arr].sort((a, b) => new Date(a.date) - new Date(b.date)) : [];
+
 
   // --- Redirect ke login kalau belum login ---
   useEffect(() => {
     const t = localStorage.getItem("token");
-    if (!t) {
+    if (!t || isExpired(t)) {
+      localStorage.removeItem("token");
       router.replace("/login");
     } else {
       setToken(t);
       setLoading(false);
+      // Hitung sisa waktu expired
+      const payload = JSON.parse(atob(t.split(".")[1]));
+      const expireTime = payload.exp * 1000; // dari detik ke ms
+      const remainingTime = expireTime - Date.now();
+
+      // Set timer untuk auto logout
+      const timerId = setTimeout(() => {
+        handleLogout();
+      }, remainingTime);
+
+      // Bersihkan timer kalau komponen unmount
+      return () => clearTimeout(timerId);
     }
   }, [router]);
-
+  function isExpired(token) {
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return payload.exp * 1000 < Date.now();
+    } catch {
+      return true;
+    }
+  }
   // --- Logout function ---
   const handleLogout = () => {
     localStorage.removeItem("token");
