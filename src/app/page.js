@@ -130,15 +130,22 @@ export default function Home() {
         body: JSON.stringify(newExpense),
       });
       const savedExpense = await res.json();
+      // 1. Selalu update allExpenses (untuk chart)
+      setAllExpenses(prev => sortedByDate([...prev, savedExpense]));
+
+      // 2. Update expenses jika sesuai dengan filter aktif
+      const expenseMonth = new Date(savedExpense.date).getMonth() + 1;
+      const expenseYear = new Date(savedExpense.date).getFullYear();
       // update list sesuai filter
-      if (
-        new Date(savedExpense.date).getMonth() + 1 === month &&
-        new Date(savedExpense.date).getFullYear() === year
-      ) {
-        setExpenses((prev) => sortedByDate([...prev, savedExpense]));
+      const shouldAddToFiltered =
+        (chartMonthFilter === "all" || expenseMonth === parseInt(chartMonthFilter)) &&
+        expenseYear === chartYearFilter;
+
+      if (shouldAddToFiltered) {
+        setExpenses(prev => sortedByDate([...prev, savedExpense]));
       }
       // update chart
-      setAllExpenses((prev) => sortedByDate([...prev, savedExpense]));
+      // setAllExpenses((prev) => sortedByDate([...prev, savedExpense]));
       setDescription("");
       setAmount("");
       setDate(null);
