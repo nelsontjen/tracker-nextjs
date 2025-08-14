@@ -9,16 +9,19 @@ import ExpenseChart from "../components/ExpenseChart";
 export default function Home() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [expenses, setExpenses] = useState([]);
+  const [expenses, setExpenses] = useState([]); // list sesuai filter
+  const [allExpenses, setAllExpenses] = useState([]); // semua data untuk chart
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
-  const [monthFilter, setMonthFilter] = useState("all");
+  const [month, setMonth] = useState(new Date().getMonth() + 1);
+  const [year, setYear] = useState(new Date().getFullYear());
   const [chartMonthFilter, setChartMonthFilter] = useState("all");
+  const [chartYearFilter, setChartYearFilter] = useState(new Date().getFullYear());
   const [date, setDate] = useState(null);
   const [token, setToken] = useState(null);
   const [adding, setAdding] = useState(false);
 
-  // --- Helpers ---
+  // === Helper ===
   const formatLocalDate = (d) => {
     if (!d) return null;
     const year = d.getFullYear();
@@ -28,10 +31,25 @@ export default function Home() {
   };
 
   const sortedByDate = (arr) =>
-    Array.isArray(arr) ? [...arr].sort((a, b) => new Date(a.date) - new Date(b.date)) : [];
+    Array.isArray(arr)
+      ? [...arr].sort((a, b) => new Date(b.date) - new Date(a.date)) // DESC
+      : [];
 
+  const isExpired = (token) => {
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return payload.exp * 1000 < Date.now();
+    } catch {
+      return true;
+    }
+  };
 
-  // --- Redirect ke login kalau belum login ---
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    router.replace("/login");
+  };
+
+  // === Cek login & set auto logout ===
   useEffect(() => {
     const t = localStorage.getItem("token");
     if (!t || isExpired(t)) {
@@ -40,73 +58,67 @@ export default function Home() {
     } else {
       setToken(t);
       setLoading(false);
-      // Hitung sisa waktu expired
       const payload = JSON.parse(atob(t.split(".")[1]));
-      const expireTime = payload.exp * 1000; // dari detik ke ms
+      const expireTime = payload.exp * 1000;
       const remainingTime = expireTime - Date.now();
 
-      // Set timer untuk auto logout
       const timerId = setTimeout(() => {
         handleLogout();
       }, remainingTime);
 
-      // Bersihkan timer kalau komponen unmount
       return () => clearTimeout(timerId);
     }
   }, [router]);
-  function isExpired(token) {
+
+  // === Fetch data bulan yang dipilih ===
+  const fetchFilteredExpenses = async (m, y) => {
     try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      return payload.exp * 1000 < Date.now();
-    } catch {
-      return true;
+      const res = await fetch(`/api/expenses?month=${m}&year=${y}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setExpenses(sortedByDate(data));
+    } catch (err) {
+      console.error(err);
     }
-  }
-  // --- Logout function ---
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    router.replace("/login");
   };
 
-  // --- Navigasi ke register ---
-  const goToRegister = () => {
-    router.push("/register");
+  // === Fetch semua data untuk chart ===
+  const fetchAllExpenses = async () => {
+    try {
+      const res = await fetch(`/api/expenses`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setAllExpenses(sortedByDate(data));
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  // --- Load data dari backend ---
+  // === Load data pertama kali ===
   useEffect(() => {
-    const fetchExpenses = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-      try {
-        const res = await fetch("/api/expenses", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        setExpenses(sortedByDate(data));
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchExpenses();
-  }, []);
+    if (!token) return;
+    fetchFilteredExpenses(month, year);
+    fetchAllExpenses();
+  }, [token]);
 
-  // --- Tambah expense ---
+  // === Event ganti bulan/tahun ===
+  useEffect(() => {
+    if (!token) return;
+    fetchFilteredExpenses(month, year);
+  }, [month, year]);
+
+  // === Tambah expense ===
   const addExpense = async () => {
     if (!description || !amount) return;
 
-    setAdding(true); // mulai loading tombol Add
+    setAdding(true);
     const newExpense = {
       description,
       amount: parseFloat(amount),
       date: date ? formatLocalDate(date) : formatLocalDate(new Date()),
     };
-
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setAdding(false);
-      return;
-    }
 
     try {
       const res = await fetch("/api/expenses", {
@@ -118,59 +130,73 @@ export default function Home() {
         body: JSON.stringify(newExpense),
       });
       const savedExpense = await res.json();
-      setExpenses((prev) => sortedByDate([...prev, savedExpense]));
+      // update list sesuai filter
+      if (
+        new Date(savedExpense.date).getMonth() + 1 === month &&
+        new Date(savedExpense.date).getFullYear() === year
+      ) {
+        setExpenses((prev) => sortedByDate([...prev, savedExpense]));
+      }
+      // update chart
+      setAllExpenses((prev) => sortedByDate([...prev, savedExpense]));
       setDescription("");
       setAmount("");
       setDate(null);
     } catch (err) {
       console.error(err);
     } finally {
-      setAdding(false); // selesai loading
+      setAdding(false);
     }
   };
 
-
-  // --- Hapus expense ---
+  // === Hapus expense ===
   const deleteExpense = async (id) => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-
     try {
       await fetch(`/api/expenses/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
       setExpenses((prev) => prev.filter((exp) => exp.id !== id));
+      setAllExpenses((prev) => prev.filter((exp) => exp.id !== id));
     } catch (err) {
       console.error(err);
     }
   };
 
-  // --- Filter bulan ---
   const filteredExpenses =
     chartMonthFilter !== "all"
       ? expenses.filter(
-        (exp) => new Date(exp.date).getMonth() + 1 === parseInt(chartMonthFilter)
+        (exp) =>
+          new Date(exp.date).getMonth() + 1 === parseInt(chartMonthFilter) &&
+          new Date(exp.date).getFullYear() === chartYearFilter
       )
-      : expenses;
+      : expenses.filter(
+        (exp) => new Date(exp.date).getFullYear() === chartYearFilter
+      );
 
-
-  const total = filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
   if (loading) return <div>Redirecting to login...</div>;
 
   return (
     <div className="max-w-xl mx-auto p-4">
       {/* Header */}
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Expense Tracker</h1>
-        <button
-          onClick={handleLogout}
-          className="bg-red-500 text-white p-2 rounded"
-        >
-          Logout
-        </button>
-      </div>
-
+      <header className="bg-gradient-to-r from-indigo-600 to-blue-500 text-white p-4 shadow-lg">
+        <div className="max-w-4xl mx-auto flex justify-between items-center">
+          <div className="flex items-center space-x-2">
+            <h1 className="text-xl font-bold">Expense Tracker</h1>
+          </div>
+          <div className="flex items-center space-x-4">
+            <span className="text-sm bg-white/20 px-3 py-1 rounded-full">
+              {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </span>
+            <button
+              onClick={handleLogout}
+              className="flex bg-red-500 items-center text-sm hover:bg-white/10 p-2 rounded-full transition-colors"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+      </header>
       {/* Form Input */}
       <div className="bg-gray-800 p-4 rounded shadow mb-6">
         <h2 className="font-semibold mb-2">Tambah Pengeluaran</h2>
@@ -231,67 +257,118 @@ export default function Home() {
           </button>
         </div>
       </div>
+      {/* Chart */}
       {/* Chart + Filter */}
       <div className="mb-4">
-        <div className="flex flex-col md:flex-row justify-between items-center mb-2">
-          <select
-            value={chartMonthFilter}
-            onChange={(e) => setChartMonthFilter(e.target.value)}
-            className="border p-2 mb-2 md:mb-0"
-          >
-            <option value="all" className="text-black">All Months</option>
-            {Array.from({ length: 12 }, (_, i) => (
-              <option key={i + 1} value={i + 1} className="text-black">
-                {new Date(0, i).toLocaleString("default", { month: "long" })}
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-col md:flex-row gap-3 items-center mb-4">
+          {/* Container untuk filter bulan+tahun */}
+          <div className="flex flex-1 gap-2 w-full">
+            {/* Filter Bulan */}
+            <select
+              value={chartMonthFilter}
+              onChange={(e) => {
+                setChartMonthFilter(e.target.value);
+                fetchFilteredExpenses(e.target.value, chartYearFilter);
+              }}
+              className="flex-1 border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all" className="text-black">All Months</option>
+              {Array.from({ length: 12 }, (_, i) => (
+                <option key={i + 1} value={i + 1} className="text-black">
+                  {new Date(0, i).toLocaleString("default", { month: "short" })}
+                </option>
+              ))}
+            </select>
+
+            {/* Filter Tahun */}
+            <select
+              value={chartYearFilter}
+              onChange={(e) => {
+                const year = parseInt(e.target.value);
+                setChartYearFilter(year);
+                fetchFilteredExpenses(chartMonthFilter, year);
+              }}
+              className="flex-1 border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              {Array.from({ length: 5 }, (_, i) => {
+                const year = new Date().getFullYear() + i - 2;
+                return (
+                  <option key={year} value={year} className="text-black">
+                    {year}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          {/* Reset Button */}
           {chartMonthFilter !== "all" && (
             <button
-              onClick={() => setChartMonthFilter("all")}
-              className="bg-gray-300 p-1 rounded"
+              onClick={async () => {
+                setChartMonthFilter("all");
+                setChartYearFilter(new Date().getFullYear());
+                await fetchAllExpenses();
+              }}
+              className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-md transition-colors"
             >
-              Reset Filter
+              Reset
             </button>
           )}
         </div>
 
         <ExpenseChart
-          expenses={expenses}
-          onMonthClick={(month) => setChartMonthFilter(month)}
+          expenses={allExpenses}
+          onMonthClick={(month) => {
+            setChartMonthFilter(month);
+            fetchFilteredExpenses(month, chartYearFilter);
+          }}
           chartMonthFilter={chartMonthFilter}
         />
       </div>
 
       {/* Total */}
       <h2 className="text-xl font-bold mb-2">
-        Total: Rp {filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0).toLocaleString()}
+        Total: Rp{" "}
+        {(chartMonthFilter === "all" ? allExpenses.filter(e => new Date(e.date).getFullYear() === chartYearFilter) : filteredExpenses).reduce((sum, exp) => sum + exp.amount, 0).toLocaleString()}
       </h2>
 
-      {/* List Expenses */}
-      <ul>
-        {filteredExpenses.map((exp) => (
+      {/* List */}
+      <ul className="space-y-3">
+        {(chartMonthFilter === "all"
+          ? allExpenses.filter(e => new Date(e.date).getFullYear() === chartYearFilter)
+          : filteredExpenses
+        ).map((exp) => (
           <li
             key={exp.id}
-            className="flex justify-between items-center border-b py-2"
+            className="flex justify-between items-center p-4 bg-white rounded-lg shadow-xs hover:shadow-md transition-shadow"
           >
-            <div>
-              <p>{exp.description}</p>
-              <small>
-                {new Date(exp.date).toLocaleDateString()} - Rp{" "}
-                {exp.amount.toLocaleString()}
-              </small>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-gray-800 truncate">{exp.description}</p>
+              <div className="flex items-center mt-1 text-sm text-gray-500">
+                <span className="mr-2">
+                  📅 {new Date(exp.date).toLocaleDateString('id-ID', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric'
+                  })}
+                </span>
+                <span className="font-medium text-red-500">
+                  Rp{exp.amount.toLocaleString('id-ID')}
+                </span>
+              </div>
             </div>
             <button
               onClick={() => deleteExpense(exp.id)}
-              className="text-red-500"
+              className="ml-4 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+              aria-label="Delete"
             >
-              Delete
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
             </button>
           </li>
         ))}
       </ul>
     </div>
-
   );
 }
