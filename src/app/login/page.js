@@ -1,14 +1,15 @@
 "use client";
 
-import { useState,useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
-// --- Cek token saat halaman dibuka ---
+  // --- Cek token saat halaman dibuka ---
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
@@ -17,6 +18,7 @@ export default function LoginPage() {
   }, [router]);
   const handleLogin = async (e) => {
     e.preventDefault(); // supaya tidak reload page
+    setLoading(true);
 
     try {
       const res = await fetch("/api/login", {
@@ -34,6 +36,8 @@ export default function LoginPage() {
     } catch (err) {
       console.error(err);
       setError("Login failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -58,10 +62,17 @@ export default function LoginPage() {
           className="border p-2 w-full mb-2"
         />
         <button
-          type="submit" // penting
-          className="bg-blue-500 text-white p-2 rounded w-full"
+          type="submit"
+          disabled={loading}
+          className={`flex justify-center items-center bg-blue-500 text-white p-2 rounded w-full ${
+            loading ? "opacity-70 cursor-not-allowed" : ""
+          }`}
         >
-          Login
+          {loading ? (
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          ) : (
+            "Login"
+          )}
         </button>
       </form>
 
