@@ -15,7 +15,7 @@ export default function Home() {
   const [amount, setAmount] = useState("");
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
-  const [chartMonthFilter, setChartMonthFilter] = useState("all");
+  const [chartMonthFilter, setChartMonthFilter] = useState(String(new Date().getMonth() + 1)); // default: bulan sekarang
   const [chartYearFilter, setChartYearFilter] = useState(new Date().getFullYear());
   const [date, setDate] = useState(null);
   const [token, setToken] = useState(null);
