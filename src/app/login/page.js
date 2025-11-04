@@ -136,7 +136,7 @@ export default function LoginPage() {
 
           <div className="flex flex-col space-y-4 p-6 pt-0">
             <div className="text-sm text-center text-gray-400">
-              Don't have an account?{" "}
+              Dont have an account?{" "}
               <a
                 href="/register"
                 className="text-blue-400 hover:underline font-medium"
