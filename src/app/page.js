@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { LogOut, TrendingDown, Calendar as CalendarIcon } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import ExpenseChart from "../components/ExpenseChart";
-
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 export default function Home() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -15,8 +17,12 @@ export default function Home() {
   const [amount, setAmount] = useState("");
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
-  const [chartMonthFilter, setChartMonthFilter] = useState(String(new Date().getMonth() + 1)); // default: bulan sekarang
-  const [chartYearFilter, setChartYearFilter] = useState(new Date().getFullYear());
+  const [chartMonthFilter, setChartMonthFilter] = useState(
+    String(new Date().getMonth() + 1)
+  ); // default: bulan sekarang
+  const [chartYearFilter, setChartYearFilter] = useState(
+    new Date().getFullYear()
+  );
   const [date, setDate] = useState(null);
   const [token, setToken] = useState(null);
   const [adding, setAdding] = useState(false);
@@ -131,18 +137,19 @@ export default function Home() {
       });
       const savedExpense = await res.json();
       // 1. Selalu update allExpenses (untuk chart)
-      setAllExpenses(prev => sortedByDate([...prev, savedExpense]));
+      setAllExpenses((prev) => sortedByDate([...prev, savedExpense]));
 
       // 2. Update expenses jika sesuai dengan filter aktif
       const expenseMonth = new Date(savedExpense.date).getMonth() + 1;
       const expenseYear = new Date(savedExpense.date).getFullYear();
       // update list sesuai filter
       const shouldAddToFiltered =
-        (chartMonthFilter === "all" || expenseMonth === parseInt(chartMonthFilter)) &&
+        (chartMonthFilter === "all" ||
+          expenseMonth === parseInt(chartMonthFilter)) &&
         expenseYear === chartYearFilter;
 
       if (shouldAddToFiltered) {
-        setExpenses(prev => sortedByDate([...prev, savedExpense]));
+        setExpenses((prev) => sortedByDate([...prev, savedExpense]));
       }
       // update chart
       // setAllExpenses((prev) => sortedByDate([...prev, savedExpense]));
@@ -173,209 +180,268 @@ export default function Home() {
   const filteredExpenses =
     chartMonthFilter !== "all"
       ? expenses.filter(
-        (exp) =>
-          new Date(exp.date).getMonth() + 1 === parseInt(chartMonthFilter) &&
-          new Date(exp.date).getFullYear() === chartYearFilter
-      )
+          (exp) =>
+            new Date(exp.date).getMonth() + 1 === parseInt(chartMonthFilter) &&
+            new Date(exp.date).getFullYear() === chartYearFilter
+        )
       : expenses.filter(
-        (exp) => new Date(exp.date).getFullYear() === chartYearFilter
-      );
+          (exp) => new Date(exp.date).getFullYear() === chartYearFilter
+        );
 
   if (loading) return <div>Redirecting to login...</div>;
 
   return (
-    <div className="max-w-xl mx-auto p-4">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-indigo-600 to-blue-500 text-white p-4 shadow-lg">
-        <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <h1 className="text-xl font-bold">Expense Tracker</h1>
+    <div className="text-foreground min-h-screen bg-gradient-to-br from-background to-muted/30">
+      <header className="sticky top-0 z-10 border-b border-border/40 bg-card/80 backdrop-blur-lg">
+        <div className="container mx-auto flex items-center justify-between px-4 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent">
+              <TrendingDown className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">
+                Expense Tracker
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                {new Date().toLocaleDateString("id-ID", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                })}
+              </p>
+            </div>
           </div>
-          <div className="flex items-center space-x-4">
-            <span className="text-sm bg-white/20 px-3 py-1 rounded-full">
-              {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })}
-            </span>
-            <button
-              onClick={handleLogout}
-              className="flex bg-red-500 items-center text-sm hover:bg-white/10 p-2 rounded-full transition-colors"
-            >
-              Logout
-            </button>
-          </div>
+          <Button
+            onClick={handleLogout}
+            variant="outline"
+            className="gap-2 transition-all hover:scale-[1.02]"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">Logout</span>
+          </Button>
         </div>
       </header>
-      {/* Form Input */}
-      <div className="bg-gray-800 p-4 rounded shadow mb-6">
-        <h2 className="font-semibold mb-2">Tambah Pengeluaran</h2>
-        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 mb-4">
-          <div className="flex flex-col md:flex-row gap-2 flex-grow">
-            <input
-              type="text"
-              placeholder="Description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="border p-2 w-full md:w-1/2"
-            />
-            <input
-              type="number"
-              placeholder="Amount"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="border p-2 w-full md:w-1/4"
-            />
-            <DatePicker
-              selected={date}
-              onChange={(d) => setDate(d)}
-              dateFormat="dd/MM/yyyy"
-              placeholderText="Select date"
-              className="border p-2 w-full md:flex-1 min-w-[120px]"
-            />
-          </div>
-
-          <button
-            onClick={addExpense}
-            disabled={adding}
-            className={`bg-blue-500 text-white p-2 rounded w-full md:w-auto md:ml-auto mt-2 md:mt-0 flex items-center justify-center gap-2 ${adding ? "opacity-50 cursor-not-allowed" : ""
-              }`}
-          >
-            {adding && (
-              <svg
-                className="animate-spin h-4 w-4 text-white"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                ></path>
-              </svg>
-            )}
-            {adding ? "Adding..." : "Add"}
-          </button>
-        </div>
-      </div>
-      {/* Chart */}
-      {/* Chart + Filter */}
-      <div className="mb-4">
-        <div className="flex flex-col md:flex-row gap-3 items-center mb-4">
-          {/* Container untuk filter bulan+tahun */}
-          <div className="flex flex-1 gap-2 w-full">
-            {/* Filter Bulan */}
-            <select
-              value={chartMonthFilter}
-              onChange={(e) => {
-                setChartMonthFilter(e.target.value);
-                fetchFilteredExpenses(e.target.value, chartYearFilter);
-              }}
-              className="flex-1 border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all" className="text-black">All Months</option>
-              {Array.from({ length: 12 }, (_, i) => (
-                <option key={i + 1} value={i + 1} className="text-black">
-                  {new Date(0, i).toLocaleString("default", { month: "short" })}
-                </option>
-              ))}
-            </select>
-
-            {/* Filter Tahun */}
-            <select
-              value={chartYearFilter}
-              onChange={(e) => {
-                const year = parseInt(e.target.value);
-                setChartYearFilter(year);
-                fetchFilteredExpenses(chartMonthFilter, year);
-              }}
-              className="flex-1 border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              {Array.from({ length: 5 }, (_, i) => {
-                const year = new Date().getFullYear() + i - 2;
-                return (
-                  <option key={year} value={year} className="text-black">
-                    {year}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-
-          {/* Reset Button */}
-          {chartMonthFilter !== "all" && (
-            <button
-              onClick={async () => {
-                setChartMonthFilter("all");
-                setChartYearFilter(new Date().getFullYear());
-                await fetchAllExpenses();
-              }}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-md transition-colors"
-            >
-              Reset
-            </button>
-          )}
-        </div>
-
-        <ExpenseChart
-          expenses={allExpenses}
-          onMonthClick={(month) => {
-            setChartMonthFilter(month);
-            fetchFilteredExpenses(month, chartYearFilter);
-          }}
-          chartMonthFilter={chartMonthFilter}
-        />
-      </div>
-
-      {/* Total */}
-      <h2 className="text-xl font-bold mb-2">
-        Total: Rp{" "}
-        {(chartMonthFilter === "all" ? allExpenses.filter(e => new Date(e.date).getFullYear() === chartYearFilter) : filteredExpenses).reduce((sum, exp) => sum + exp.amount, 0).toLocaleString()}
-      </h2>
-
-      {/* List */}
-      <ul className="space-y-3">
-        {(chartMonthFilter === "all"
-          ? allExpenses.filter(e => new Date(e.date).getFullYear() === chartYearFilter)
-          : filteredExpenses
-        ).map((exp) => (
-          <li
-            key={exp.id}
-            className="flex justify-between items-center p-4 bg-white rounded-lg shadow-xs hover:shadow-md transition-shadow"
-          >
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-gray-800 truncate">{exp.description}</p>
-              <div className="flex items-center mt-1 text-sm text-gray-500">
-                <span className="mr-2">
-                  📅 {new Date(exp.date).toLocaleDateString('id-ID', {
-                    day: '2-digit',
-                    month: 'short',
-                    year: 'numeric'
-                  })}
-                </span>
-                <span className="font-medium text-red-500">
-                  Rp{exp.amount.toLocaleString('id-ID')}
-                </span>
+      <main className="container mx-auto px-4 py-8">
+        <div className="mx-auto max-w-6xl space-y-6">
+          <div className="rounded-2xl bg-card p-6 shadow-[var(--shadow-md)] transition-all hover:shadow-[var(--shadow-lg)]">
+            <h2 className="mb-4 text-lg font-semibold text-foreground">
+              Add New Expense
+            </h2>
+            <form onSubmit={addExpense} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <input
+                  type="text"
+                  placeholder="Description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm transition-all focus:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                <input
+                  type="number"
+                  placeholder="Amount"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm transition-all focus:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                <div className="relative flex items-center">
+                  <CalendarIcon className="absolute left-3 h-4 w-4 text-muted-foreground" />
+                  <DatePicker
+                    selected={date}
+                    onChange={(d) => setDate(d)}
+                    dateFormat="dd/MM/yyyy"
+                    placeholderText="Select date"
+                    wrapperClassName="w-full"
+                    className={cn(
+                      "flex h-10 w-full rounded-md border border-input bg-transparent pl-9 pr-3 py-2 text-sm transition-all hover:cursor-pointer hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-ring",
+                      !date && "text-muted-foreground"
+                    )}
+                  />
+                </div>
               </div>
+
+              <button
+                onClick={addExpense}
+                disabled={adding}
+                className="inline-flex items-center justify-center w-full rounded-md h-10 px-4 py-2 text-sm font-medium text-primary-foreground bg-gradient-to-r from-primary to-accent transition-all hover:opacity-90 hover:scale-[1.02] disabled:pointer-events-none disabled:opacity-50"
+              >
+                {adding && (
+                  <svg
+                    className="animate-spin h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                    ></path>
+                  </svg>
+                )}
+                {adding ? "Adding..." : "Add Expense"}
+              </button>
+            </form>
+          </div>
+          <div className="rounded-2xl bg-card p-6 shadow-[var(--shadow-md)] mb-6">
+            <h2 className="text-lg font-semibold mb-4">Filter Expenses</h2>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              {/* Select Bulan */}
+              <select
+                value={chartMonthFilter}
+                onChange={(e) => {
+                  setChartMonthFilter(e.target.value);
+                  fetchFilteredExpenses(e.target.value, chartYearFilter);
+                }}
+                className="flex-1 px-4 py-2.5 rounded-lg border border-input bg-background focus:ring-2 focus:ring-ring outline-none h-10 text-sm"
+              >
+                <option value="all">All Months</option>
+                {Array.from({ length: 12 }, (_, i) => (
+                  <option key={i + 1} value={i + 1}>
+                    {/* Dirapikan ke satu baris */}
+                    {new Date(0, i).toLocaleString("default", {
+                      month: "long",
+                    })}
+                  </option>
+                ))}
+              </select>
+
+              {/* Select Tahun */}
+              <select
+                value={chartYearFilter}
+                onChange={(e) => {
+                  const year = parseInt(e.target.value);
+                  setChartYearFilter(year);
+                  fetchFilteredExpenses(chartMonthFilter, year);
+                }}
+                className="flex-1 px-4 py-2.5 rounded-lg border border-input bg-background focus:ring-2 focus:ring-ring outline-none h-10 text-sm"
+              >
+                {/* Dirapikan ke satu baris return */}
+                {Array.from({ length: 5 }, (_, i) => {
+                  const year = new Date().getFullYear() + i - 2;
+                  return (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  );
+                })}
+              </select>
+
+              {/* Tombol Reset */}
+              {chartMonthFilter !== "all" && (
+                <button
+                  onClick={() => {
+                    setChartMonthFilter("all");
+                    setChartYearFilter(new Date().getFullYear());
+                    fetchAllExpenses(); // Asumsi Anda memiliki fungsi ini
+                  }}
+                  className="px-4 py-2.5 rounded-lg border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-all h-10 text-sm"
+                >
+                  Reset
+                </button>
+              )}
             </div>
-            <button
-              onClick={() => deleteExpense(exp.id)}
-              className="ml-4 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
-              aria-label="Delete"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
-          </li>
-        ))}
-      </ul>
+          </div>
+          <ExpenseChart
+            expenses={allExpenses}
+            onMonthClick={(month) => {
+              setChartMonthFilter(month);
+              fetchFilteredExpenses(month, chartYearFilter);
+            }}
+            chartMonthFilter={chartMonthFilter}
+          />
+        </div>
+        <div className="rounded-2xl bg-gradient-to-br from-primary to-accent p-6 text-primary-foreground shadow-[var(--shadow-lg)] mb-6">
+          <p className="mb-1 text-sm font-medium opacity-90">Total Expenses</p>
+          <p className="text-3xl font-bold">
+            Rp{" "}
+            {(chartMonthFilter === "all"
+              ? allExpenses.filter(
+                  (e) => new Date(e.date).getFullYear() === chartYearFilter
+                )
+              : filteredExpenses
+            )
+              .reduce((sum, exp) => sum + exp.amount, 0)
+              .toLocaleString()}
+          </p>
+        </div>
+
+        {/* List */}
+        <div className="rounded-2xl bg-card p-6 shadow-[var(--shadow-md)]">
+          <h2 className="mb-4 text-lg font-semibold">
+            Recent Expenses
+            <span className="ml-2 text-sm font-normal text-muted-foreground">
+              (
+              {
+                (chartMonthFilter === "all"
+                  ? allExpenses.filter(
+                      (e) => new Date(e.date).getFullYear() === chartYearFilter
+                    )
+                  : filteredExpenses
+                ).length
+              }{" "}
+              items)
+            </span>
+          </h2>
+          <div className="space-y-3">
+            {(chartMonthFilter === "all"
+              ? allExpenses.filter(
+                  (e) => new Date(e.date).getFullYear() === chartYearFilter
+                )
+              : filteredExpenses
+            ).map((exp) => (
+              <div
+                key={exp.id}
+                className="group rounded-xl bg-muted/50 p-4 transition-all hover:scale-[1.02] hover:shadow-[var(--shadow-md)]"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 space-y-2">
+                    <h3 className="font-semibold">{exp.description}</h3>
+                    <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        📅{" "}
+                        {new Date(exp.date).toLocaleDateString("id-ID", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </div>
+                      <div className="flex items-center gap-1 font-semibold text-destructive">
+                        💰 Rp {exp.amount.toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => deleteExpense(exp.id)}
+                    className="opacity-0 transition-opacity group-hover:opacity-100 p-2 rounded-lg hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
