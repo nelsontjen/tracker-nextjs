@@ -26,7 +26,25 @@ export default function Home() {
   const [date, setDate] = useState(null);
   const [token, setToken] = useState(null);
   const [adding, setAdding] = useState(false);
+  const handleAmountChange = (e) => {
+    const rawValue = e.target.value;
 
+    // 1. Bersihkan input dari karakter non-digit (hapus semua titik)
+    const numericValue = rawValue.replace(/[^0-9]/g, "");
+
+    // 2. Jika string kosong, set state ke string kosong
+    if (numericValue === "") {
+      setAmount("");
+      return;
+    }
+
+    // 3. Format angka ke locale Indonesia ('id-ID')
+    const number = Number(numericValue);
+    const formattedValue = number.toLocaleString("id-ID");
+
+    // 4. Simpan nilai yang sudah diformat ke dalam state
+    setAmount(formattedValue);
+  };
   // === Helper ===
   const formatLocalDate = (d) => {
     if (!d) return null;
@@ -118,11 +136,11 @@ export default function Home() {
   // === Tambah expense ===
   const addExpense = async () => {
     if (!description || !amount) return;
-
+    const numericAmount = amount.replace(/\./g, "");
     setAdding(true);
     const newExpense = {
       description,
-      amount: parseFloat(amount),
+      amount: parseFloat(numericAmount),
       date: date ? formatLocalDate(date) : formatLocalDate(new Date()),
     };
 
@@ -237,10 +255,11 @@ export default function Home() {
                   className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm transition-all focus:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   placeholder="Amount"
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  onChange={handleAmountChange}
                   className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm transition-all focus:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
                 <div className="relative flex items-center">
@@ -402,10 +421,10 @@ export default function Home() {
                 className="group rounded-xl bg-muted/50 p-4 transition-all hover:scale-[1.02] hover:shadow-[var(--shadow-md)]"
               >
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 space-y-2">
+                  <div className="flex-1 space-y-2 min-w-0">
                     <h3 className="font-semibold">{exp.description}</h3>
-                    <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground w-full">
+                      <div className="flex items-center gap-1 whitespace-nowrap">
                         📅{" "}
                         {new Date(exp.date).toLocaleDateString("id-ID", {
                           day: "2-digit",
@@ -413,14 +432,14 @@ export default function Home() {
                           year: "numeric",
                         })}
                       </div>
-                      <div className="flex items-center gap-1 font-semibold text-destructive">
+                      <div className="flex items-center gap-1 font-semibold text-destructive whitespace-nowrap">
                         💰 Rp {exp.amount.toLocaleString()}
                       </div>
                     </div>
                   </div>
                   <button
                     onClick={() => deleteExpense(exp.id)}
-                    className="opacity-0 transition-opacity group-hover:opacity-100 p-2 rounded-lg hover:bg-destructive/10 hover:text-destructive"
+                    className="flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100 p-2 rounded-lg hover:bg-destructive/10 hover:text-destructive"
                   >
                     <svg
                       className="h-4 w-4"
