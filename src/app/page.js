@@ -369,7 +369,9 @@ export default function Home() {
             </div>
           </div>
           <ExpenseChart
-            expenses={allExpenses}
+            expenses={allExpenses.filter(
+            (exp) => new Date(exp.date).getFullYear() === chartYearFilter
+            )}
             onMonthClick={(month) => {
               setChartMonthFilter(month);
               fetchFilteredExpenses(month, chartYearFilter);
