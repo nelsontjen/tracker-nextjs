@@ -1,14 +1,14 @@
 "use client";
 
-import { useState,useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const router = useRouter();
-// --- Cek token saat halaman dibuka ---
+  // --- Cek token saat halaman dibuka ---
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
@@ -20,7 +20,7 @@ export default function RegisterPage() {
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username, password }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -39,10 +39,10 @@ export default function RegisterPage() {
       <h1 className="text-2xl font-bold mb-4">Register</h1>
       {error && <p className="text-red-500">{error}</p>}
       <input
-        type="username"
+        type="text"
         placeholder="Username"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
         className="border p-2 w-full mb-2"
       />
       <input
