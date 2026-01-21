@@ -8,205 +8,54 @@ import "react-datepicker/dist/react-datepicker.css";
 import ExpenseChart from "../components/ExpenseChart";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useExpenses } from "./hooks/useExpenses";
+import { useAuth } from "./hooks/useAuth";
 export default function Home() {
-  const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [expenses, setExpenses] = useState([]); // list sesuai filter
-  const [allExpenses, setAllExpenses] = useState([]); // semua data untuk chart
-  const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState("");
-  const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const [year, setYear] = useState(new Date().getFullYear());
-  const [chartMonthFilter, setChartMonthFilter] = useState(
-    String(new Date().getMonth() + 1)
-  ); // default: bulan sekarang
-  const [chartYearFilter, setChartYearFilter] = useState(
-    new Date().getFullYear()
-  );
-  const [date, setDate] = useState(null);
-  const [token, setToken] = useState(null);
-  const [adding, setAdding] = useState(false);
+  const router = useRouter(); // router is still needed for useAuth? No, useAuth handles it. Wait, checking useAuth implementation. 
+  // useAuth uses useRouter internally. Home might not need it unless used elsewhere.
+  // Home uses it for handleLogout? No, handleLogout is coming from useAuth.
+
+  // The logic in useAuth handles the redirect.
+  // We should replace the state and effect.
+
+  const { token, loading, handleLogout } = useAuth();
+
+  const {
+    expenses,
+    allExpenses,
+    adding,
+    chartMonthFilter,
+    setChartMonthFilter,
+    chartYearFilter,
+    setChartYearFilter,
+    description,
+    setDescription,
+    amount,
+    setAmount,
+    date,
+    setDate,
+    addExpense,
+    deleteExpense,
+    fetchFilteredExpenses,
+    fetchAllExpenses
+  } = useExpenses(token);
+
+  // === Helper ===
   const handleAmountChange = (e) => {
     const rawValue = e.target.value;
-
-    // 1. Bersihkan input dari karakter non-digit (hapus semua titik)
     const numericValue = rawValue.replace(/[^0-9]/g, "");
-
-    // 2. Jika string kosong, set state ke string kosong
     if (numericValue === "") {
       setAmount("");
       return;
     }
-
-    // 3. Format angka ke locale Indonesia ('id-ID')
     const number = Number(numericValue);
-    const formattedValue = number.toLocaleString("id-ID");
-
-    // 4. Simpan nilai yang sudah diformat ke dalam state
-    setAmount(formattedValue);
+    setAmount(number.toLocaleString("id-ID"));
   };
-  // === Helper ===
-  const formatLocalDate = (d) => {
-    if (!d) return null;
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
-  const sortedByDate = (arr) =>
-    Array.isArray(arr)
-      ? [...arr].sort((a, b) => new Date(b.date) - new Date(a.date)) // DESC
-      : [];
-
-  const isExpired = (token) => {
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      return payload.exp * 1000 < Date.now();
-    } catch {
-      return true;
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    router.replace("/login");
-  };
-
-  // === Cek login & set auto logout ===
-  useEffect(() => {
-    const t = localStorage.getItem("token");
-    if (!t || isExpired(t)) {
-      localStorage.removeItem("token");
-      router.replace("/login");
-    } else {
-      setToken(t);
-      setLoading(false);
-      const payload = JSON.parse(atob(t.split(".")[1]));
-      const expireTime = payload.exp * 1000;
-      const remainingTime = expireTime - Date.now();
-
-      const timerId = setTimeout(() => {
-        handleLogout();
-      }, remainingTime);
-
-      return () => clearTimeout(timerId);
-    }
-  }, [router]);
-
-  // === Fetch data bulan yang dipilih ===
-  const fetchFilteredExpenses = async (m, y) => {
-    try {
-      const res = await fetch(`/api/expenses?month=${m}&year=${y}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      setExpenses(sortedByDate(data));
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // === Fetch semua data untuk chart ===
-  const fetchAllExpenses = async () => {
-    try {
-      const res = await fetch(`/api/expenses`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      setAllExpenses(sortedByDate(data));
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // === Load data pertama kali ===
-  useEffect(() => {
-    if (!token) return;
-    fetchFilteredExpenses(month, year);
-    fetchAllExpenses();
-  }, [token]);
-
-  // === Event ganti bulan/tahun ===
-  useEffect(() => {
-    if (!token) return;
-    fetchFilteredExpenses(month, year);
-  }, [month, year]);
-
-  // === Tambah expense ===
-  const addExpense = async () => {
-    if (!description || !amount) return;
-    const numericAmount = amount.replace(/\./g, "");
-    setAdding(true);
-    const newExpense = {
-      description,
-      amount: parseFloat(numericAmount),
-      date: date ? formatLocalDate(date) : formatLocalDate(new Date()),
-    };
-
-    try {
-      const res = await fetch("/api/expenses", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(newExpense),
-      });
-      const savedExpense = await res.json();
-      // 1. Selalu update allExpenses (untuk chart)
-      setAllExpenses((prev) => sortedByDate([...prev, savedExpense]));
-
-      // 2. Update expenses jika sesuai dengan filter aktif
-      const expenseMonth = new Date(savedExpense.date).getMonth() + 1;
-      const expenseYear = new Date(savedExpense.date).getFullYear();
-      // update list sesuai filter
-      const shouldAddToFiltered =
-        (chartMonthFilter === "all" ||
-          expenseMonth === parseInt(chartMonthFilter)) &&
-        expenseYear === chartYearFilter;
-
-      if (shouldAddToFiltered) {
-        setExpenses((prev) => sortedByDate([...prev, savedExpense]));
-      }
-      // update chart
-      // setAllExpenses((prev) => sortedByDate([...prev, savedExpense]));
-      setDescription("");
-      setAmount("");
-      setDate(null);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setAdding(false);
-    }
-  };
-
-  // === Hapus expense ===
-  const deleteExpense = async (id) => {
-    try {
-      await fetch(`/api/expenses/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setExpenses((prev) => prev.filter((exp) => exp.id !== id));
-      setAllExpenses((prev) => prev.filter((exp) => exp.id !== id));
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const filteredExpenses =
-    chartMonthFilter !== "all"
-      ? expenses.filter(
-          (exp) =>
-            new Date(exp.date).getMonth() + 1 === parseInt(chartMonthFilter) &&
-            new Date(exp.date).getFullYear() === chartYearFilter
-        )
-      : expenses.filter(
-          (exp) => new Date(exp.date).getFullYear() === chartYearFilter
-        );
 
   if (loading) return <div>Redirecting to login...</div>;
+
+  // Utilize 'expenses' directly as it is already filtered by the hook's API call
+  // 'allExpenses' is used for the chart to show year context
 
   return (
     <div className="text-foreground min-h-screen bg-gradient-to-br from-background to-muted/30">
@@ -359,7 +208,7 @@ export default function Home() {
                   onClick={() => {
                     setChartMonthFilter("all");
                     setChartYearFilter(new Date().getFullYear());
-                    fetchAllExpenses(); // Asumsi Anda memiliki fungsi ini
+                    fetchAllExpenses();
                   }}
                   className="px-4 py-2.5 rounded-lg border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-all h-10 text-sm"
                 >
@@ -370,7 +219,7 @@ export default function Home() {
           </div>
           <ExpenseChart
             expenses={allExpenses.filter(
-            (exp) => new Date(exp.date).getFullYear() === chartYearFilter
+              (exp) => new Date(exp.date).getFullYear() === chartYearFilter
             )}
             onMonthClick={(month) => {
               setChartMonthFilter(month);
@@ -383,12 +232,7 @@ export default function Home() {
           <p className="mb-1 text-sm font-medium opacity-90">Total Expenses</p>
           <p className="text-3xl font-bold">
             Rp{" "}
-            {(chartMonthFilter === "all"
-              ? allExpenses.filter(
-                  (e) => new Date(e.date).getFullYear() === chartYearFilter
-                )
-              : filteredExpenses
-            )
+            {expenses
               .reduce((sum, exp) => sum + exp.amount, 0)
               .toLocaleString()}
           </p>
@@ -401,23 +245,13 @@ export default function Home() {
             <span className="ml-2 text-sm font-normal text-muted-foreground">
               (
               {
-                (chartMonthFilter === "all"
-                  ? allExpenses.filter(
-                      (e) => new Date(e.date).getFullYear() === chartYearFilter
-                    )
-                  : filteredExpenses
-                ).length
+                expenses.length
               }{" "}
               items)
             </span>
           </h2>
           <div className="space-y-3">
-            {(chartMonthFilter === "all"
-              ? allExpenses.filter(
-                  (e) => new Date(e.date).getFullYear() === chartYearFilter
-                )
-              : filteredExpenses
-            ).map((exp) => (
+            {expenses.map((exp) => (
               <div
                 key={exp.id}
                 className="group rounded-xl bg-muted/50 p-4 transition-all hover:scale-[1.02] hover:shadow-[var(--shadow-md)]"
