@@ -123,6 +123,33 @@ export function useExpenses(token) {
         }
     };
 
+    // === Edit expense ===
+    const editExpense = async (id, updatedData) => {
+        if (!token) return false;
+        try {
+            const res = await fetch(`/api/expenses/${id}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(updatedData),
+            });
+            if (!res.ok) return false;
+            const updated = await res.json();
+
+            // Update kedua state sekaligus
+            const updater = (prev) =>
+                sortedByDate(prev.map((exp) => (exp.id === id ? updated : exp)));
+            setExpenses(updater);
+            setAllExpenses(updater);
+            return true;
+        } catch (err) {
+            console.error(err);
+            return false;
+        }
+    };
+
     // Load data initially and when filters change
     useEffect(() => {
         if (token) {
@@ -152,6 +179,7 @@ export function useExpenses(token) {
         setDate,
         addExpense,
         deleteExpense,
+        editExpense,
         fetchFilteredExpenses,
         fetchAllExpenses
     };
